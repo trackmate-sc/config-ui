@@ -30,7 +30,7 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  * #L%
  */
-package org.scijava.ui.config.visitors.gui;
+package org.scijava.ui.config.visitors.gui.elements;
 
 import java.awt.BorderLayout;
 import java.awt.Color;

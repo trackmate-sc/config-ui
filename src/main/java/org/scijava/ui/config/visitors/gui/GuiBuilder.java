@@ -112,6 +112,7 @@ import org.scijava.ui.config.Parameters.StringParam;
 import org.scijava.ui.config.utils.FileChooser;
 import org.scijava.ui.config.utils.FileChooser.DialogType;
 import org.scijava.ui.config.visitors.gui.elements.BoundedValue;
+import org.scijava.ui.config.visitors.gui.elements.CollapsibleSection;
 import org.scijava.ui.config.visitors.gui.elements.BoundedValue.UpdateListener;
 import org.scijava.ui.config.visitors.gui.elements.StyleElement;
 import org.scijava.ui.config.visitors.gui.elements.StyleElements.BooleanElement;
