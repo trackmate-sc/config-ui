@@ -68,39 +68,48 @@ import org.scijava.ui.config.visitors.Strings;
 import org.scijava.ui.config.visitors.gui.GuiBuilder.ConfigPanel;
 
 /**
- * Builds a {@link JFrame} containing a configuration UI for a
- * {@link Configurator}, along with action buttons (Run, Preview, Store, Reload,
- * Reset, Help) and a progress bar.
- *
+ * Builds a UI that can configure and run a task.
+ * <p>
+ * The UI is a {@link JFrame} that is created by calling the static method
+ * {@link #build(Configurator, Runnable, Configurator)}. The config object is
+ * used to build the UI, that lets the user configure parameters. The first
+ * instance passed to the build method is updated live with the values entered
+ * by the user. The task is a {@link Runnable} that is executed when the user
+ * clicks the Run button, and can use the values in the first config instance
+ * for parameterization.
+ * <p>
+ * To report task progress in the UI, the task can implement the
+ * {@link ProgressAware} interface: the builder then injects the frame's
+ * {@link Progress} instance into it (see {@link ProgressAware}). The task can
+ * also be wired manually through {@link ConfigFrame#getProgress()}.
+ * <p>
+ * The user can bookmark default parameters with the Store button, and reload
+ * them with the Reload button. The default The second config instance is used
+ * to reset the first instance to default values when the user clicks the Reset
+ * button. The Display button prints the current configuration to the console.
+ * <p>
+ * If the task implements the {@link Cancelable} interface, a Stop button is
+ * displayed next to the Run button, and clicking it will signal the task to
+ * cancel. If the task implements the {@link Previewable} interface, a Preview
+ * button is displayed next to the Run button, and clicking it will execute the
+ * preview method of the task.
+ * <p>
+ * Another
+ * {@link #build(Configurator, Runnable, Runnable, Runnable, Runnable, Runnable)}
+ * lets you specify custom actions for the Store, Reload, Reset, and Display
+ * buttons.
+ * 
  * @param <C>
  *            the type of configurator.
  */
 public final class FrameBuilder< C extends Configurator >
 {
-	/**
-	 * A task to be executed when the user clicks the Run button. The task
-	 * receives a {@link ConfigFrame.Progress} object to report progress and
-	 * check for cancellation.
-	 */
-	@FunctionalInterface
-	public interface UserTask
-	{
-		/**
-		 * Executes the task.
-		 *
-		 * @param progress
-		 *            the progress reporter.
-		 * @throws Exception
-		 *             if the task fails.
-		 */
-		void run( ConfigFrame.Progress progress ) throws Exception;
-	}
 
 	/** The configurator providing the parameters and UI structure. */
 	protected final C config;
 
 	/** The task to execute when the user clicks Run. */
-	protected final UserTask task;
+	protected final Runnable task;
 
 	/** Action to store the current configuration. */
 	protected final Runnable onStore;
@@ -136,7 +145,7 @@ public final class FrameBuilder< C extends Configurator >
 	 */
 	protected FrameBuilder(
 			final C config,
-			final UserTask task,
+			final Runnable task,
 			final Runnable onStore,
 			final Runnable onReload,
 			final Runnable onReset,
@@ -150,6 +159,11 @@ public final class FrameBuilder< C extends Configurator >
 		this.onDisplay = onDisplay;
 
 		this.frame = new ConfigFrame();
+
+		// Inject progress into tasks that declare the capability, before the
+		// frame is shown, so they never see a null progress when they run.
+		if ( task instanceof ProgressAware )
+			( ( ProgressAware ) task ).setProgress( frame.getProgress() );
 
 		frame.configPanel = GuiBuilder.build( config );
 		final JPanel buttonPanel = buttonPanel();
@@ -325,7 +339,7 @@ public final class FrameBuilder< C extends Configurator >
 				try
 				{
 					if ( task != null )
-						task.run( frame.getProgress() );
+						task.run();
 				}
 				catch ( final Throwable ex )
 				{
@@ -537,60 +551,6 @@ public final class FrameBuilder< C extends Configurator >
 		/** Stop preview button. */
 		public JButton btnStopPreview;
 
-		/**
-		 * Interface for reporting task progress and checking for cancellation.
-		 */
-		public interface Progress
-		{
-			/**
-			 * Sets the progress fraction.
-			 *
-			 * @param fraction
-			 *            the progress fraction (0 to 1).
-			 */
-			void set( double fraction );
-
-			/**
-			 * Sets the progress fraction with a status message.
-			 *
-			 * @param fraction
-			 *            the progress fraction (0 to 1).
-			 * @param text
-			 *            the status message.
-			 */
-			void set( double fraction, String text );
-
-			/**
-			 * Sets the progress bar to indeterminate mode.
-			 *
-			 * @param on
-			 *            if {@code true}, show indeterminate progress.
-			 * @param text
-			 *            the status message.
-			 */
-			void indeterminate( boolean on, String text );
-
-			/**
-			 * Sets a status message without changing the progress value.
-			 *
-			 * @param text
-			 *            the status message.
-			 */
-			void message( String text );
-
-			/**
-			 * Clears the progress indicator and resets to the initial state.
-			 */
-			void clear();
-
-			/**
-			 * Checks whether the task has been canceled.
-			 *
-			 * @return {@code true} if canceled, {@code false} otherwise.
-			 */
-			boolean isCanceled();
-		}
-
 		/** Panel for run/stop buttons. */
 		public JPanel runStop;
 
@@ -727,7 +687,7 @@ public final class FrameBuilder< C extends Configurator >
 
 	public static < C extends Configurator > ConfigFrame build(
 			final C config,
-			final UserTask task,
+			final Runnable task,
 			final Runnable onStore,
 			final Runnable onReload,
 			final Runnable onReset,
@@ -738,7 +698,7 @@ public final class FrameBuilder< C extends Configurator >
 
 	public static < C extends Configurator > ConfigFrame build(
 			final C config,
-			final UserTask task,
+			final Runnable task,
 			final C defaultValues )
 	{
 		final AtomicReference< ConfigPanel > ref = new AtomicReference<>();

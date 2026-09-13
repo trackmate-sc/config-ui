@@ -34,7 +34,6 @@ package org.scijava.ui.config;
 
 import org.scijava.ui.config.Parameters.IntParam;
 import org.scijava.ui.config.visitors.gui.FrameBuilder;
-import org.scijava.ui.config.visitors.gui.FrameBuilder.UserTask;
 
 public class DemoSimple
 {
@@ -42,8 +41,7 @@ public class DemoSimple
 	public static void main( final String[] args )
 	{
 		final SimpleConfig config = new SimpleConfig();
-		final UserTask task = ( p ) -> p.message( "Value = " + config.param.getValue() );
-		FrameBuilder.build( config, task, new SimpleConfig() ).setVisible( true );
+		FrameBuilder.build( config, () -> {}, new SimpleConfig() ).setVisible( true );
 	}
 
 	private static class SimpleConfig extends Configurator

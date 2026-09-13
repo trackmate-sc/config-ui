@@ -103,27 +103,44 @@ public class MyAlgorithmConfig extends Configurator {
 
 ```java
 import org.scijava.ui.config.visitors.gui.FrameBuilder;
-import org.scijava.ui.config.visitors.gui.FrameBuilder.UserTask;
 import org.scijava.ui.config.visitors.gui.FrameBuilder.ConfigFrame;
+import org.scijava.ui.config.visitors.gui.Progress;
+import org.scijava.ui.config.visitors.gui.ProgressAware;
 
 // Create config and default values instances
 MyAlgorithmConfig config = new MyAlgorithmConfig();
 MyAlgorithmConfig defaultValues = new MyAlgorithmConfig();
 
-// Define the task to execute
-UserTask task = progress -> {
-    progress.indeterminate(false, "Processing...");
-    for (int i = 0; i <= config.maxIterations.getValue(); i++) {
-        if (progress.isCanceled()) return;
-        // Do work...
-        progress.set((double) i / config.maxIterations.getValue(), "Step " + i);
-        Thread.sleep(50);
+// Define the task to execute. Implementing ProgressAware lets the frame
+// inject its Progress instance into the task before it is shown.
+class MyTask implements Runnable, ProgressAware {
+
+    private Progress progress;
+
+    @Override
+    public void setProgress(Progress progress) {
+        this.progress = progress;
     }
-    progress.message("Done!");
-};
+
+    @Override
+    public void run() {
+        progress.indeterminate(false, "Processing...");
+        for (int i = 0; i <= config.maxIterations.getValue(); i++) {
+            if (progress.isCanceled()) return;
+            // Do work...
+            progress.set((double) i / config.maxIterations.getValue(), "Step " + i);
+            try {
+                Thread.sleep(50);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+        progress.message("Done!");
+    }
+}
 
 // Build and show the frame
-ConfigFrame frame = FrameBuilder.build(config, task, defaultValues);
+ConfigFrame frame = FrameBuilder.build(config, new MyTask(), defaultValues);
 frame.setVisible(true);
 ```
 
@@ -202,19 +219,25 @@ The gray `?` buttons will display the help text of a parameter when clicked.
 
 ### Using FrameBuilder for a Complete Dialog
 
-`FrameBuilder` creates a full-featured dialog with action buttons, but you need to provide a `UserTask` that will be executed when the user presses the run button:
+`FrameBuilder` creates a full-featured dialog with action buttons, but you need to provide a `Runnable` task that will be executed when the user presses the run button. To report progress, implement the `ProgressAware` capability interface so the frame injects its `Progress` instance into the task before it is shown (see the previous section):
 
 ```java
-import org.scijava.ui.config.visitors.gui.FrameBuilder;
-
-		class MyTask implements UserTask
+		class MyTask implements Runnable, ProgressAware
 		{
 
 			/* We will use it later in the cancelable example. */
 			protected final AtomicBoolean cancelRequested = new AtomicBoolean( false );
 
+			private Progress progress;
+
 			@Override
-			public void run( final Progress progress ) throws Exception
+			public void setProgress( final Progress progress )
+			{
+				this.progress = progress;
+			}
+
+			@Override
+			public void run()
 			{
 				cancelRequested.set( false );
 				progress.indeterminate( false, "Processing..." );
@@ -227,13 +250,20 @@ import org.scijava.ui.config.visitors.gui.FrameBuilder;
 					}
 					// Do work...
 					progress.set( ( double ) i / config.maxIterations.getValue(), "Step " + i );
-					Thread.sleep( 50 );
+					try
+					{
+						Thread.sleep( 50 );
+					}
+					catch ( final InterruptedException e )
+					{
+						e.printStackTrace();
+					}
 				}
 				progress.message( "Done!" );
 			}
 		};
 
-ConfigFrame frame = FrameBuilder.build(config, task, defaultValues);
+ConfigFrame frame = FrameBuilder.build(config, new MyTask(), defaultValues);
 frame.setVisible(true);
 ```
 

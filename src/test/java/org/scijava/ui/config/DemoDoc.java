@@ -46,10 +46,10 @@ import org.scijava.ui.config.Parameters.IntParam;
 import org.scijava.ui.config.Parameters.PathParam;
 import org.scijava.ui.config.visitors.Strings;
 import org.scijava.ui.config.visitors.gui.FrameBuilder;
-import org.scijava.ui.config.visitors.gui.FrameBuilder.ConfigFrame.Progress;
-import org.scijava.ui.config.visitors.gui.FrameBuilder.UserTask;
 import org.scijava.ui.config.visitors.gui.GuiBuilder;
 import org.scijava.ui.config.visitors.gui.GuiBuilder.ConfigPanel;
+import org.scijava.ui.config.visitors.gui.Progress;
+import org.scijava.ui.config.visitors.gui.ProgressAware;
 
 /**
  * Demo used in the README.
@@ -148,14 +148,22 @@ public class DemoDoc
 		 */
 
 		// The task to run.`
-		class MyTask implements UserTask
+		class MyTask implements Runnable, ProgressAware
 		{
 
 			/* We will use it later in the cancelable example. */
 			protected final AtomicBoolean cancelRequested = new AtomicBoolean( false );
 
+			private Progress progress;
+
 			@Override
-			public void run( final Progress progress ) throws Exception
+			public void setProgress( final Progress progress )
+			{
+				this.progress = progress;
+			}
+
+			@Override
+			public void run()
 			{
 				cancelRequested.set( false );
 				progress.indeterminate( false, "Processing..." );
@@ -168,14 +176,24 @@ public class DemoDoc
 					}
 					// Do work...
 					progress.set( ( double ) i / config.maxIterations.getValue(), "Step " + i );
-					Thread.sleep( 50 );
+					try
+					{
+						Thread.sleep( 50 );
+					}
+					catch ( final InterruptedException e )
+					{
+						e.printStackTrace();
+					}
 				}
 				progress.message( "Done!" );
 			}
 		};
 		// Default values for the config, used to reset the form.
 		final MyAlgorithmConfig defaultValues = new MyAlgorithmConfig();
-		FrameBuilder.build( config, new MyTask(), defaultValues ).setVisible( true );
+		final MyTask mytask = new MyTask();
+		// The progress is injected into the task automatically, since it
+		// implements ProgressAware.
+		FrameBuilder.build( config, mytask, defaultValues ).setVisible( true );
 
 		/*
 		 * Integrating Cancelable and Previewable

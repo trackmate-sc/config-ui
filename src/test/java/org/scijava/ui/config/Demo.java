@@ -41,8 +41,8 @@ import org.scijava.ui.config.visitors.Maps;
 import org.scijava.ui.config.visitors.Strings;
 import org.scijava.ui.config.visitors.gui.FrameBuilder;
 import org.scijava.ui.config.visitors.gui.FrameBuilder.ConfigFrame;
-import org.scijava.ui.config.visitors.gui.FrameBuilder.ConfigFrame.Progress;
-import org.scijava.ui.config.visitors.gui.FrameBuilder.UserTask;
+import org.scijava.ui.config.visitors.gui.Progress;
+import org.scijava.ui.config.visitors.gui.ProgressAware;
 
 /**
  * Demo with a UI that would configure Cellpose 3.
@@ -105,7 +105,7 @@ public class Demo
 		frame.setVisible( true );
 	}
 
-	private static class DummyRunner implements UserTask, Cancelable, Previewable
+	private static class DummyRunner implements Runnable, ProgressAware, Cancelable, Previewable
 	{
 
 		private final Cellpose3Config config;
@@ -114,29 +114,44 @@ public class Demo
 
 		private String cancelReason;
 
+		private Progress p;
+
 		public DummyRunner( final Cellpose3Config config )
 		{
 			this.config = config;
 		}
 
 		@Override
-		public void run( final Progress p ) throws Exception
+		public void setProgress( final Progress progress )
+		{
+			this.p = progress;
+		}
+
+		@Override
+		public void run()
 		{
 			cancelRequested.set( false );
 			p.indeterminate( false, "Preparing..." );
-			Thread.sleep( 500 );
-			final int steps = 20;
-			for ( int i = 1; i <= steps; i++ )
+			try
 			{
-				if ( isCanceled() )
+				Thread.sleep( 500 );
+				final int steps = 20;
+				for ( int i = 1; i <= steps; i++ )
 				{
-					p.message( "Canceled:" + getCancelReason() );
-					return;
+					if ( isCanceled() )
+					{
+						p.message( "Canceled:" + getCancelReason() );
+						return;
+					}
+					Thread.sleep( 100 );
+					p.set( i / ( double ) steps, "Running " + config.builtinModel.getValue() );
 				}
-				Thread.sleep( 100 );
-				p.set( i / ( double ) steps, "Running " + config.builtinModel.getValue() );
+				p.message( "Model run finished." );
 			}
-			p.message( "Model run finished." );
+			catch ( final InterruptedException e )
+			{
+				e.printStackTrace();
+			}
 		}
 
 		@Override
