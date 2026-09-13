@@ -177,28 +177,24 @@ public class Demo
 		public void preview()
 		{
 			cancelRequested.set( false );
-			System.out.println( "Previewing with config: " + config );
+			p.indeterminate( false, "Previewing..." );
 			try
 			{
 				Thread.sleep( 2500 );
+				p.message( "Preview done." );
 			}
 			catch ( final InterruptedException e )
 			{
 				e.printStackTrace();
 			}
-			if ( cancelRequested.get() )
-			{
-				System.out.println( "Preview was canceled." );
-				return;
-			}
-			System.out.println( "Preview done." );
+			p.clear();
 		}
 
 		@Override
 		public void cancel()
 		{
 			cancelRequested.set( true );
-			System.out.println( "Preview canceled." );
+			p.message( "Canceling preview..." );
 		}
 	}
 }

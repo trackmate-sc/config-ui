@@ -41,13 +41,13 @@ public class DemoSimple
 	public static void main( final String[] args )
 	{
 		final SimpleConfig config = new SimpleConfig();
-		FrameBuilder.build( config, () -> {}, new SimpleConfig() ).setVisible( true );
+		FrameBuilder.build( config, () -> System.out.println( "val = " + config.param.getValue() ), new SimpleConfig() ).setVisible( true );
 	}
 
 	private static class SimpleConfig extends Configurator
 	{
 
-		private IntParam param;
+		private final IntParam param;
 
 		public SimpleConfig()
 		{
