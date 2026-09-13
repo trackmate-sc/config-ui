@@ -10,7 +10,7 @@
 	</parent>
 
 	<artifactId>config-ui</artifactId>
-	<version>0.0.8-SNAPSHOT</version>
+	<version>0.0.8</version>
 
 	<name>Config-UI</name>
 	<description>A Java library to facilitate building user-interfaces configuring algorithms.</description>
@@ -61,7 +61,7 @@
 	<scm>
 		<connection>scm:git:https://github.com/trackmate-sc/config-ui</connection>
 		<developerConnection>scm:git:git@github.com:trackmate-sc/config-ui</developerConnection>
-		<tag>HEAD</tag>
+		<tag>config-ui-0.0.8</tag>
 		<url>https://github.com/trackmate-sc/config-ui</url>
 	</scm>
 	<issueManagement>
