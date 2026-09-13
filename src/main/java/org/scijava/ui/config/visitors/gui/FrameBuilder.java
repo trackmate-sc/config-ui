@@ -106,25 +106,25 @@ public final class FrameBuilder< C extends Configurator >
 {
 
 	/** The configurator providing the parameters and UI structure. */
-	protected final C config;
+	private final C config;
 
 	/** The task to execute when the user clicks Run. */
-	protected final Runnable task;
+	private final Runnable task;
 
 	/** Action to store the current configuration. */
-	protected final Runnable onStore;
+	private final Runnable onStore;
 
 	/** Action to reload the configuration from preferences. */
-	protected final Runnable onReload;
+	private final Runnable onReload;
 
 	/** Action to reset parameters to default values. */
-	protected final Runnable onReset;
+	private final Runnable onReset;
 
 	/** Action to display the current configuration (e.g., print to console). */
-	protected final Runnable onDisplay;
+	private final Runnable onDisplay;
 
 	/** The frame containing the configuration UI. */
-	protected final ConfigFrame frame;
+	private final ConfigFrame frame;
 
 	/**
 	 * Creates a new FrameBuilder with the specified configurator, task, and
@@ -143,7 +143,7 @@ public final class FrameBuilder< C extends Configurator >
 	 * @param onDisplay
 	 *            action to display the configuration, or {@code null}.
 	 */
-	protected FrameBuilder(
+	private FrameBuilder(
 			final C config,
 			final Runnable task,
 			final Runnable onStore,
@@ -205,7 +205,7 @@ public final class FrameBuilder< C extends Configurator >
 		return frame;
 	}
 
-	protected JPanel buttonPanel()
+	private JPanel buttonPanel()
 	{
 		final JPanel row = new JPanel( new GridLayout( 1, 0, 0, 0 ) );
 		row.setOpaque( false );
@@ -291,7 +291,7 @@ public final class FrameBuilder< C extends Configurator >
 		return b;
 	}
 
-	protected ActionListener stopper()
+	private ActionListener stopper()
 	{
 		return e -> {
 			// Signal cancellation to the task
@@ -315,7 +315,7 @@ public final class FrameBuilder< C extends Configurator >
 		};
 	}
 
-	protected ActionListener runner()
+	private ActionListener runner()
 	{
 		return e -> {
 			frame.disabler.disable();
@@ -387,7 +387,7 @@ public final class FrameBuilder< C extends Configurator >
 		};
 	}
 
-	protected ActionListener previewer()
+	private ActionListener previewer()
 	{
 		return e -> {
 			if ( !( task instanceof Previewable ) )
@@ -457,7 +457,7 @@ public final class FrameBuilder< C extends Configurator >
 		};
 	}
 
-	protected ActionListener previewStopper()
+	private ActionListener previewStopper()
 	{
 		return e -> {
 			if ( !( task instanceof Previewable ) )
@@ -492,7 +492,7 @@ public final class FrameBuilder< C extends Configurator >
 		};
 	}
 
-	protected void showHelp( final String help )
+	private void showHelp( final String help )
 	{
 		final String text = help.trim();
 		if ( isLikelyUrl( text ) )
@@ -503,7 +503,7 @@ public final class FrameBuilder< C extends Configurator >
 		showHelpText( help );
 	}
 
-	protected void showHelpText( final String helpText )
+	private void showHelpText( final String helpText )
 	{
 		final JTextArea ta = new JTextArea( helpText, 5, 40 );
 		ta.setEditable( false );
@@ -546,37 +546,37 @@ public final class FrameBuilder< C extends Configurator >
 	public static class ConfigFrame extends JFrame
 	{
 		/** Panel for preview run/stop buttons. */
-		public JPanel previewRunStop;
+		private JPanel previewRunStop;
 
 		/** Stop preview button. */
-		public JButton btnStopPreview;
+		private JButton btnStopPreview;
 
 		/** Panel for run/stop buttons. */
-		public JPanel runStop;
+		private JPanel runStop;
 
 		private static final long serialVersionUID = 1L;
 
 		/** Disabler for all components during task execution. */
-		final EverythingDisablerAndReenabler disabler = new EverythingDisablerAndReenabler( this, new Class[] { JLabel.class, JProgressBar.class } );
+		private final EverythingDisablerAndReenabler disabler = new EverythingDisablerAndReenabler( this, new Class[] { JLabel.class, JProgressBar.class } );
 
 		/** The main configuration panel containing parameter UI elements. */
-		public ConfigPanel configPanel;
+		private ConfigPanel configPanel;
 
 		/** Stop button for canceling running tasks. */
-		public JButton btnStop;
+		private JButton btnStop;
 
 		/** Run button for executing the task. */
-		public JButton btnRun;
+		private JButton btnRun;
 
 		/** Preview button for previewing results. */
-		public JButton btnPreview;
+		private JButton btnPreview;
 
 		/** Progress bar showing task execution progress. */
-		public JProgressBar progressBar;
+		private JProgressBar progressBar;
 
 		private final AtomicBoolean canceled = new AtomicBoolean( false );
 
-		public void markCanceled( final boolean v )
+		private void markCanceled( final boolean v )
 		{
 			canceled.set( v );
 		}
@@ -586,31 +586,57 @@ public final class FrameBuilder< C extends Configurator >
 			@Override
 			public void set( final double f )
 			{
-				setProgress( f );
+				set( f, null );
 			}
 
 			@Override
 			public void set( final double f, final String t )
 			{
-				setProgress( f, t );
+				final double v = Math.max( 0d, Math.min( 1d, f ) );
+				final long now = System.nanoTime();
+				final boolean largeJump = Double.isNaN( lastProgressValue ) || Math.abs( v - lastProgressValue ) >= PROGRESS_MIN_DELTA || v == 0d || v == 1d;
+				final boolean timeOk = now - lastProgressUpdateNanos >= PROGRESS_MIN_UPDATE_NANOS;
+				if ( !( largeJump || timeOk ) )
+					return;
+				lastProgressValue = v;
+				lastProgressUpdateNanos = now;
+				SwingUtilities.invokeLater( () -> {
+					if ( progressBar.isIndeterminate() )
+						progressBar.setIndeterminate( false );
+					progressBar.setValue( ( int ) Math.round( v * progressBar.getMaximum() ) );
+					if ( t != null )
+						progressBar.setString( t );
+				} );
 			}
 
 			@Override
 			public void indeterminate( final boolean on, final String t )
 			{
-				setProgressIndeterminate( on, t );
+				SwingUtilities.invokeLater( () -> {
+					progressBar.setIndeterminate( on );
+					if ( t != null )
+						progressBar.setString( t );
+				} );
 			}
 
 			@Override
 			public void message( final String t )
 			{
-				setStatusMessage( t );
+				SwingUtilities.invokeLater( () -> {
+					progressBar.setString( t == null ? null : t );
+				} );
 			}
 
 			@Override
 			public void clear()
 			{
-				clearProgress();
+				lastProgressValue = Double.NaN;
+				lastProgressUpdateNanos = 0L;
+				SwingUtilities.invokeLater( () -> {
+					progressBar.setIndeterminate( false );
+					progressBar.setValue( 0 );
+					progressBar.setString( null );
+				} );
 			}
 
 			@Override
@@ -631,57 +657,6 @@ public final class FrameBuilder< C extends Configurator >
 		public Progress getProgress()
 		{
 			return progress;
-		}
-
-		public void setProgress( final double fraction )
-		{
-			setProgress( fraction, null );
-		}
-
-		public void setProgress( final double fraction, final String text )
-		{
-			final double f = Math.max( 0d, Math.min( 1d, fraction ) );
-			final long now = System.nanoTime();
-			final boolean largeJump = Double.isNaN( lastProgressValue ) || Math.abs( f - lastProgressValue ) >= PROGRESS_MIN_DELTA || f == 0d || f == 1d;
-			final boolean timeOk = now - lastProgressUpdateNanos >= PROGRESS_MIN_UPDATE_NANOS;
-			if ( !( largeJump || timeOk ) )
-				return;
-			lastProgressValue = f;
-			lastProgressUpdateNanos = now;
-			SwingUtilities.invokeLater( () -> {
-				if ( progressBar.isIndeterminate() )
-					progressBar.setIndeterminate( false );
-				progressBar.setValue( ( int ) Math.round( f * progressBar.getMaximum() ) );
-				if ( text != null )
-					progressBar.setString( text );
-			} );
-		}
-
-		public void setProgressIndeterminate( final boolean indeterminate, final String text )
-		{
-			SwingUtilities.invokeLater( () -> {
-				progressBar.setIndeterminate( indeterminate );
-				if ( text != null )
-					progressBar.setString( text );
-			} );
-		}
-
-		public void clearProgress()
-		{
-			lastProgressValue = Double.NaN;
-			lastProgressUpdateNanos = 0L;
-			SwingUtilities.invokeLater( () -> {
-				progressBar.setIndeterminate( false );
-				progressBar.setValue( 0 );
-				progressBar.setString( null );
-			} );
-		}
-
-		public void setStatusMessage( final String message )
-		{
-			SwingUtilities.invokeLater( () -> {
-				progressBar.setString( message == null ? null : message );
-			} );
 		}
 	}
 
